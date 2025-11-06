@@ -15,8 +15,8 @@ const System = () => {
       // 增加 Worker 狀態請求的超時時間到 25 秒，因為 Celery inspect 操作較慢
       // 雖然後端已經優化，但考慮到網路延遲，保留較大的安全邊際
       const results = await Promise.allSettled([
-        api.get("/api/system/workers/status", { timeout: 25000 }),
-        api.get("/api/system/redis/info", { timeout: 5000 }),
+        api.get("/api/system/workers/status", { timeout: 30000 }), // 增加到 30 秒
+        api.get("/api/system/redis/info", { timeout: 10000 }), // 增加到 10 秒
       ]);
 
       // 處理 workers status

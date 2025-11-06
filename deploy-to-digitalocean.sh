@@ -71,16 +71,9 @@ create_droplet() {
     
     if [ -n "$EXISTING_DROPLET" ]; then
         print_warning "Droplet '${DROPLET_NAME}' 已存在"
-        read -p "是否要刪除並重新創建？(y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            print_info "刪除現有 Droplet..."
-            doctl compute droplet delete ${DROPLET_NAME} --force
-            sleep 5
-        else
-            print_info "使用現有 Droplet"
-            return 0
-        fi
+        print_info "刪除現有 Droplet..."
+        doctl compute droplet delete ${DROPLET_NAME} --force
+        sleep 5
     fi
     
     print_info "創建新 Droplet..."
@@ -293,10 +286,10 @@ start_services() {
         
         # 建置並啟動服務
         echo "建置 Docker 映像..."
-        docker compose build
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml build
         
         echo "啟動服務..."
-        docker compose up -d
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
         
         # 等待服務啟動
         echo "等待服務啟動..."
@@ -304,7 +297,7 @@ start_services() {
         
         # 檢查服務狀態
         echo "檢查服務狀態..."
-        docker compose ps
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
         
         echo "服務啟動完成！"
 ENDSSH
@@ -326,7 +319,7 @@ run_migrations() {
         
         # 執行遷移
         echo "執行 Alembic 遷移..."
-        docker compose exec -T api alembic upgrade head
+        docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api alembic upgrade head
         
         echo "資料庫遷移完成！"
 ENDSSH
@@ -412,13 +405,8 @@ main() {
     doctl account get
     echo ""
     
-    # 確認部署
-    read -p "確定要開始部署嗎？(y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_info "部署已取消"
-        exit 0
-    fi
+    # 確認部署（自動執行）
+    print_info "開始自動部署..."
     
     # 執行部署步驟
     create_droplet

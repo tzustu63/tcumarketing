@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=3)
 
 
-async def get_inspect_data(timeout: float = 2.0):
+async def get_inspect_data(timeout: float = 10.0):
     """非同步獲取 celery inspect 數據，帶超時處理
     
     優化：使用更快的 ping() 方法檢查 Worker 狀態，只獲取 active tasks
@@ -54,10 +54,10 @@ async def get_inspect_data(timeout: float = 2.0):
         }
     
     try:
-        # 使用較短的超時時間（2秒基礎 + 3秒緩衝 = 5秒總超時）
+        # 增加超時時間（10秒基礎 + 5秒緩衝 = 15秒總超時）
         data = await asyncio.wait_for(
             loop.run_in_executor(executor, _get_inspect),
-            timeout=timeout + 3.0
+            timeout=timeout + 5.0
         )
         return data
     except asyncio.TimeoutError:
@@ -99,8 +99,8 @@ async def get_workers_status() -> Dict[str, Any]:
     優化：使用簡化的檢查方式，只獲取必要資訊以提高響應速度
     """
     try:
-        # 使用較短的超時（2秒），只獲取必要資訊
-        inspect_data = await get_inspect_data(timeout=2.0)
+        # 使用較長的超時（10秒），只獲取必要資訊
+        inspect_data = await get_inspect_data(timeout=10.0)
         
         active_tasks = inspect_data.get('active', {})
         workers_online = inspect_data.get('workers_online', [])

@@ -45,7 +45,7 @@ class ScrapingEngine:
     def __init__(
         self,
         headless: bool = True,
-        timeout: int = 30,
+        timeout: int = 60,  # Increased timeout for slower connections
         use_anti_detection: bool = True,
         use_rate_limiting: bool = True,
         min_delay: float = 2.0,

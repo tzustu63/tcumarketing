@@ -1,0 +1,57 @@
+version: '3.8'
+
+# Production overrides for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Remove init scripts in production
+    command: postgres -c max_connections=200 -c shared_buffers=256MB
+
+  redis:
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  api:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    environment:
+      - API_RELOAD=false
+      - LOG_LEVEL=WARNING
+    volumes:
+      # Remove source code mount in production
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+
+  worker:
+    command: celery -A app.celery_app worker --loglevel=warning --concurrency=8 --max-tasks-per-child=1000
+    environment:
+      - LOG_LEVEL=WARNING
+    volumes:
+      # Remove source code mount in production
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+
+  beat:
+    command: celery -A app.celery_app beat --loglevel=warning
+    environment:
+      - LOG_LEVEL=WARNING
+    volumes:
+      - ./logs:/app/logs
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://188.166.228.79:8000
+    command: npm start
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=http://188.166.228.79:8000
+
+

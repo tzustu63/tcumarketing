@@ -1,0 +1,43 @@
+# Railway.toml - Railway 部署配置
+
+# 此配置文件用於指導 Railway 如何部署專案
+# 由於此專案包含多個服務，需要在 Railway 中分別部署
+
+# API 服務配置
+[api]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile"
+watchPatterns = ["backend/**"]
+
+[api.deploy]
+startCommand = "/app/start.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+
+# Worker 服務配置  
+[worker]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile"
+watchPatterns = ["backend/**"]
+
+[worker.deploy]
+startCommand = "/app/start.sh"
+
+# Beat 服務配置
+[beat]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile"
+watchPatterns = ["backend/**"]
+
+[beat.deploy]
+startCommand = "/app/start.sh"
+
+# Frontend 服務配置
+[frontend]
+builder = "DOCKERFILE"
+dockerfilePath = "frontend/Dockerfile"
+watchPatterns = ["frontend/**"]
+
+[frontend.deploy]
+startCommand = "/start.sh"
+

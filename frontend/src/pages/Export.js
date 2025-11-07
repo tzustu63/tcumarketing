@@ -150,16 +150,43 @@ const Export = () => {
         const status = parseApiJson(statusResponse.data, '匯出狀態查詢');
 
         if (status.status === 'success') {
-          const downloadResponse = await api.get(
-            `/api/contacts/export/${taskId}/download`,
-            { responseType: 'blob' }
-          );
+          let downloadResponse;
+          try {
+            downloadResponse = await api.get(
+              `/api/contacts/export/${taskId}/download`,
+              { responseType: 'blob' }
+            );
+          } catch (downloadErr) {
+            // 處理下載錯誤，嘗試解析 Blob 中的 JSON 錯誤訊息
+            if (downloadErr.response?.data instanceof Blob) {
+              try {
+                const text = await downloadErr.response.data.text();
+                const errorData = JSON.parse(text);
+                throw new Error(errorData.detail || '下載檔案失敗');
+              } catch (parseErr) {
+                // 如果無法解析，使用原始錯誤訊息
+                throw new Error(downloadErr.response?.statusText || '下載檔案失敗');
+              }
+            }
+            throw downloadErr;
+          }
 
           const blobData = downloadResponse.data;
           const blob = blobData instanceof Blob ? blobData : new Blob([blobData], { type: downloadResponse.headers['content-type'] });
 
           if (blob.size === 0) {
             throw new Error('下載的文件為空');
+          }
+
+          // 檢查是否誤收到 JSON 錯誤（有時後端會回傳 JSON 但 content-type 設為 blob）
+          if (blob.type === 'application/json') {
+            const text = await blob.text();
+            try {
+              const errorData = JSON.parse(text);
+              throw new Error(errorData.detail || '匯出失敗');
+            } catch (parseErr) {
+              // 如果不是 JSON，繼續處理為正常檔案
+            }
           }
 
           let filename = status.filename || `contacts_export_${new Date().toISOString().split('T')[0]}.xlsx`;

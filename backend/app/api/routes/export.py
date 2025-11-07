@@ -197,92 +197,114 @@ async def download_export_file(
         if task_result.state != 'SUCCESS':
             raise HTTPException(
                 status_code=400,
-                detail=f"Export task is not completed yet. Current status: {task_result.state}"
+                detail=f"匯出任務尚未完成。目前狀態：{task_result.state}"
             )
         
         result = task_result.result
-        if not isinstance(result, dict) or 'filepath' not in result:
+        logger.info(f"Export task {task_id} result type: {type(result)}, keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
+        
+        if not isinstance(result, dict):
+            logger.error(f"Export task {task_id} returned non-dict result: {type(result)}")
             raise HTTPException(
                 status_code=500,
-                detail="Export task result is invalid"
+                detail="匯出任務結果格式錯誤"
             )
         
-        filepath = Path(result['filepath'])
+        # Check if task failed
+        if result.get('status') == 'error':
+            error_message = result.get('message', '匯出失敗')
+            logger.warning(f"Export task {task_id} failed: {error_message}")
+            raise HTTPException(
+                status_code=404,
+                detail=error_message
+            )
+        
         file_base64 = result.get('file_base64')
         filters_snapshot = result.get('filters')
+        filename = result.get('filename', 'contacts_export.xlsx')
         
-        if not filepath.exists():
-            logger.warning(
-                "Export file missing on API container (task_id=%s, keys=%s)",
-                task_id,
-                list(result.keys())
-            )
-            if file_base64:
-                try:
-                    file_bytes = base64.b64decode(file_base64.encode('utf-8'))
-                except Exception:
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Failed to decode export file"
-                    )
+        # 策略 1: 優先使用 file_base64（適用於 Railway 等分離式部署）
+        if file_base64:
+            logger.info(f"Using file_base64 for task {task_id} (size: {len(file_base64)} chars)")
+            try:
+                file_bytes = base64.b64decode(file_base64.encode('utf-8'))
                 headers = {
-                    "Content-Disposition": f"attachment; filename={result.get('filename', 'contacts_export.xlsx')}"
+                    "Content-Disposition": f"attachment; filename={filename}",
+                    "X-Records-Count": str(result.get('records_count', 0)),
                 }
+                logger.info(f"Successfully decoded file_base64 for task {task_id}, returning {len(file_bytes)} bytes")
                 return StreamingResponse(
                     BytesIO(file_bytes),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers=headers
                 )
-            elif filters_snapshot:
-                export_service = ExportService(db)
-                try:
-                    regenerate = export_service.export_contacts_to_excel_bytes(
-                        filename=result.get('filename', f"contacts_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"),
-                        country=filters_snapshot.get('country'),
-                        keyword=filters_snapshot.get('keyword'),
-                        city=filters_snapshot.get('city'),
-                        institution_type=filters_snapshot.get('institution_type'),
-                        source_platform=filters_snapshot.get('source_platform'),
-                        min_quality_score=filters_snapshot.get('min_quality_score'),
-                        has_email=filters_snapshot.get('has_email'),
-                        has_whatsapp=filters_snapshot.get('has_whatsapp'),
-                        date_from=datetime.fromisoformat(filters_snapshot['date_from']) if filters_snapshot.get('date_from') else None,
-                        date_to=datetime.fromisoformat(filters_snapshot['date_to']) if filters_snapshot.get('date_to') else None,
-                        max_records=filters_snapshot.get('max_records')
-                    )
-                except ValueError as e:
-                    raise HTTPException(status_code=404, detail=str(e))
-
+            except Exception as e:
+                logger.error(f"Failed to decode file_base64 for task {task_id}: {str(e)}")
+                # 繼續嘗試其他方法
+        
+        # 策略 2: 嘗試從檔案系統讀取（適用於本地或共享儲存）
+        filepath = result.get('filepath')
+        if filepath:
+            filepath = Path(filepath)
+            if filepath.exists():
+                logger.info(f"Using filesystem for task {task_id}: {filepath}")
+                return FileResponse(
+                    path=str(filepath),
+                    filename=filename,
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                logger.warning(f"Export file not found on filesystem for task {task_id}: {filepath}")
+        
+        # 策略 3: 使用 filters snapshot 重新生成（最後備援）
+        if filters_snapshot:
+            logger.info(f"Regenerating export for task {task_id} using filters snapshot")
+            export_service = ExportService(db)
+            try:
+                regenerate = export_service.export_contacts_to_excel_bytes(
+                    filename=filename,
+                    country=filters_snapshot.get('country'),
+                    keyword=filters_snapshot.get('keyword'),
+                    city=filters_snapshot.get('city'),
+                    institution_type=filters_snapshot.get('institution_type'),
+                    source_platform=filters_snapshot.get('source_platform'),
+                    min_quality_score=filters_snapshot.get('min_quality_score'),
+                    has_email=filters_snapshot.get('has_email'),
+                    has_whatsapp=filters_snapshot.get('has_whatsapp'),
+                    date_from=datetime.fromisoformat(filters_snapshot['date_from']) if filters_snapshot.get('date_from') else None,
+                    date_to=datetime.fromisoformat(filters_snapshot['date_to']) if filters_snapshot.get('date_to') else None,
+                    max_records=filters_snapshot.get('max_records')
+                )
+                
                 headers = {
                     "Content-Disposition": f"attachment; filename={regenerate['filename']}",
                     "X-Records-Count": str(regenerate["records_count"]),
                 }
-
+                
+                logger.info(f"Successfully regenerated export for task {task_id}")
                 return StreamingResponse(
                     BytesIO(regenerate["content"]),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers=headers
                 )
-            raise HTTPException(
-                status_code=404,
-                detail="Export file not found"
-            )
+            except ValueError as e:
+                logger.error(f"Failed to regenerate export for task {task_id}: {str(e)}")
+                raise HTTPException(status_code=404, detail=str(e))
         
-        filename = result.get('filename', filepath.name)
-        
-        return FileResponse(
-            path=str(filepath),
-            filename=filename,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        # 所有策略都失敗
+        logger.error(f"All download strategies failed for task {task_id}")
+        raise HTTPException(
+            status_code=404,
+            detail="找不到匯出檔案，且無法重新生成。請重新建立匯出任務。"
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to download export file: {str(e)}")
+        logger.error(f"Failed to download export file for task {task_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to download export file: {str(e)}"
+            detail=f"下載匯出檔案失敗：{str(e)}"
         )
 
 

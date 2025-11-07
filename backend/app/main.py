@@ -18,14 +18,15 @@ app = FastAPI(
 )
 
 # Configure CORS
-cors_origins = settings.cors_origins_list
+allow_origins, allow_origin_regex, allow_all_origins = settings.cors_config
 
 # 當允許所有來源時，依據 FastAPI/Starlette 規範需停用 credentials
-allow_credentials = not (len(cors_origins) == 1 and cors_origins[0] == "*")
+allow_credentials = not allow_all_origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=allow_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],

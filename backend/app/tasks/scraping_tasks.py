@@ -2,6 +2,7 @@
 Celery Tasks for Web Scraping and Data Extraction
 """
 import logging
+import base64
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from celery import Task
@@ -613,8 +614,25 @@ def export_data_task(
         wb.close()
         
         logger.info(f"Export completed: {filepath} ({records_count} records, {file_size} bytes)")
-        
-        # Send completion notification (placeholder)
+
+        with open(filepath, "rb") as export_file:
+            file_bytes = export_file.read()
+        file_base64 = base64.b64encode(file_bytes).decode("utf-8")
+
+        filters_snapshot = {
+            "country": country,
+            "keyword": keyword,
+            "city": city,
+            "institution_type": institution_type,
+            "source_platform": source_platform,
+            "min_quality_score": min_quality_score,
+            "has_email": has_email,
+            "has_whatsapp": has_whatsapp,
+            "date_from": date_from,
+            "date_to": date_to,
+            "max_records": max_records
+        }
+
         logger.info(f"Export task completed successfully: {filename}")
         
         return {
@@ -623,6 +641,8 @@ def export_data_task(
             "filepath": filepath,
             "records_count": records_count,
             "file_size": file_size,
+            "file_base64": file_base64,
+            "filters": filters_snapshot,
             "completed_at": datetime.utcnow().isoformat()
         }
         

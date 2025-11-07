@@ -220,18 +220,20 @@ npm test
 
 ## 部署
 
-### Railway 生產部署（新）
+### Docker 部署快捷流程
 
-- 先執行 `bash deploy-to-railway.sh`，確認 CLI 登入、專案與環境設定正確，並取得後續手動步驟清單。
-- 依照腳本輸出的指示或 `RAILWAY_DEPLOYMENT.md`：
-  1. 在 Railway 控制台（或使用 `railway up`）建立並部署 `tcu-api`、`tcu-worker`、`tcu-beat`、`tcu-frontend`。
-  2. 透過 `railway variables --service <服務> --environment production` 設定 `GOOGLE_API_KEY`、`GOOGLE_CSE_ID` 等環境變數。
-  3. 新增 PostgreSQL、Redis 資源並連結專案。
-  4. 執行資料庫遷移：
-     ```bash
-     railway run --service tcu-api alembic upgrade head
-     ```
-- 驗證各服務狀態，確認前端與 API 可正常對外提供服務後再調整域名或其他設定。
+- 透過 `./docker-quick-commands.sh build` 建置四個主要服務的映像檔：`api`、`worker`、`beat`、`frontend`。
+- 執行 `./docker-quick-commands.sh start` 啟動完整堆疊。
+- 初次部署時，記得執行：
+  ```bash
+  docker compose exec api alembic upgrade head
+  ```
+- 檢查服務日誌：
+  ```bash
+  ./docker-quick-commands.sh logs api
+  ./docker-quick-commands.sh logs worker
+  ```
+- 完成驗證後即可設定反向代理與 SSL 以對外提供服務。
 
 ### 開發環境部署
 

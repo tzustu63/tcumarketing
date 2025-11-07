@@ -1,15 +1,19 @@
 """
 System Management API Routes
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
 import subprocess
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
+from sqlalchemy.orm import Session
+
 from app.celery_app import celery_app
 from app.api.schemas import MessageResponse
+from app.api.dependencies import get_db
+from app.repositories.task_repository import TaskRepository
 from app.tasks.task_monitor import check_and_complete_stuck_tasks
 
 router = APIRouter(prefix="/api/system", tags=["System"])
@@ -29,23 +33,24 @@ async def get_inspect_data(timeout: float = 10.0):
     
     def _get_inspect():
         inspect = celery_app.control.inspect(timeout=timeout)
-        
+
         # 快速檢查 Worker 是否在線（使用 ping，最快）
         workers_online = []
         try:
-            ping_result = inspect.ping()
+            ping_result = inspect.ping(timeout=timeout)
             if ping_result:
                 workers_online = list(ping_result.keys())
         except Exception as e:
             logger.debug(f"Failed to ping workers: {e}")
-        
-        # 只獲取 active tasks（最重要的資訊）
+
+        # 只在有 worker 線上時才取 active tasks，避免無限等待
         active_tasks = {}
-        try:
-            active_tasks = inspect.active() or {}
-        except Exception as e:
-            logger.warning(f"Failed to get active tasks: {e}")
-        
+        if workers_online:
+            try:
+                active_tasks = inspect.active(timeout=timeout) or {}
+            except Exception as e:
+                logger.warning(f"Failed to get active tasks: {e}")
+
         # 不再獲取 stats 和 registered（太慢）
         return {
             'active': active_tasks,
@@ -91,7 +96,7 @@ async def get_inspect_data(timeout: float = 10.0):
 
 
 @router.get("/workers/status")
-async def get_workers_status() -> Dict[str, Any]:
+async def get_workers_status(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     獲取 Worker 狀態
     
@@ -100,7 +105,27 @@ async def get_workers_status() -> Dict[str, Any]:
     """
     try:
         # 使用較長的超時（10秒），只獲取必要資訊
-        inspect_data = await get_inspect_data(timeout=10.0)
+        inspect_data = await get_inspect_data(timeout=5.0)
+        task_repo = TaskRepository(db)
+        running_tasks_db = task_repo.get_running_tasks()
+        db_running_count = len(running_tasks_db)
+        db_pending_count = task_repo.count_by_status("pending")
+
+        running_tasks_summary = [
+            {
+                "id": str(task.id),
+                "keyword": task.keyword,
+                "city": task.city,
+                "country": task.country,
+                "progress": task.progress,
+                "results_count": task.results_count,
+                "status": task.status,
+                "created_at": task.created_at.isoformat() if task.created_at else None,
+                "started_at": task.started_at.isoformat() if task.started_at else None,
+                "updated_at": task.updated_at.isoformat() if task.updated_at else None,
+            }
+            for task in running_tasks_db[:20]
+        ]
         
         active_tasks = inspect_data.get('active', {})
         workers_online = inspect_data.get('workers_online', [])
@@ -113,6 +138,9 @@ async def get_workers_status() -> Dict[str, Any]:
             "worker_count": worker_count,
             "timeout": inspect_data.get('timeout', False),
             "error": inspect_data.get('error'),
+            "db_running_count": db_running_count,
+            "db_pending_count": db_pending_count,
+            "db_running_tasks": running_tasks_summary,
             # 為了向後兼容，保留這些欄位但設為空
             "stats": {},
             "registered_tasks": {},

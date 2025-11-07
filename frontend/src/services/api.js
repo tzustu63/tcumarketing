@@ -5,33 +5,66 @@ const getApiBaseURL = () => {
   // 如果有環境變數且不是 localhost，直接使用
   if (
     process.env.REACT_APP_API_URL &&
-    !process.env.REACT_APP_API_URL.includes("localhost")
+    process.env.REACT_APP_API_URL.trim() !== ""
   ) {
     return process.env.REACT_APP_API_URL;
   }
 
-  // 否則根據當前頁面的 host 和 port 構建 API URL
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
-  const port =
-    window.location.port === "3000" ? "8000" : window.location.port || "";
+  const port = window.location.port;
 
-  // 如果端口是 3000，改為 8000（API 端口）
-  if (port === "3000" || !port) {
-    return `${protocol}//${hostname}:8000`;
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    const apiPort = port === "3000" || port === "" ? "8000" : port;
+    return `${protocol}//${hostname}:${apiPort}`;
   }
 
-  // 否則保持相同主機，但嘗試使用 8000 端口
-  return `${protocol}//${hostname}:8000`;
+  return `${protocol}//${hostname}`;
 };
 
 const API_BASE_URL = getApiBaseURL();
+
+const safeTransformResponse = (data, headers) => {
+  if (data == null || typeof data !== "string") {
+    return data;
+  }
+
+  const trimmed = data.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const contentType = (headers?.["content-type"] || "").toLowerCase();
+  const looksLikeJson =
+    contentType.includes("application/json") ||
+    contentType.includes("+json") ||
+    trimmed.startsWith("{") ||
+    trimmed.startsWith("[");
+
+  if (!looksLikeJson) {
+    return trimmed;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (parseError) {
+    console.warn("JSON 解析失敗，回傳原始字串以便後續處理", {
+      preview: trimmed.slice(0, 200),
+    });
+    return trimmed;
+  }
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 60000, // 60 秒超時（針對任務創建等耗時操作）
   headers: {
     "Content-Type": "application/json",
+  },
+  transformResponse: [safeTransformResponse],
+  transitional: {
+    forcedJSONParsing: false,
+    silentJSONParsing: true,
   },
 });
 

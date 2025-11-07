@@ -4,12 +4,12 @@ Export Service for Contact Data
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils.dataframe import dataframe_to_rows
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from pathlib import Path
 import logging
+from io import BytesIO
 
 from app.models.contact import Contact
 from app.config import settings
@@ -62,70 +62,149 @@ class ExportService:
         """
         logger.info(f"Starting export to {filename}")
         
-        # Build query with filters
-        from app.models.task import Task
+        df = self._build_contacts_dataframe(
+            country=country,
+            keyword=keyword,
+            city=city,
+            institution_type=institution_type,
+            source_platform=source_platform,
+            min_quality_score=min_quality_score,
+            has_email=has_email,
+            has_whatsapp=has_whatsapp,
+            date_from=date_from,
+            date_to=date_to,
+            max_records=max_records
+        )
         
-        # If city filter is needed, we need to join with Task table
+        filepath = self.export_dir / filename
+        workbook = self._create_workbook(df)
+        workbook.save(filepath)
+        workbook.close()
+        
+        records_count = len(df.index)
+        file_size = filepath.stat().st_size
+        
+        logger.info(f"Export completed: {filepath}")
+        return str(filepath)
+
+    def export_contacts_to_excel_bytes(
+        self,
+        filename: str,
+        country: Optional[str] = None,
+        keyword: Optional[str] = None,
+        city: Optional[str] = None,
+        institution_type: Optional[str] = None,
+        source_platform: Optional[str] = None,
+        min_quality_score: Optional[float] = None,
+        has_email: Optional[bool] = None,
+        has_whatsapp: Optional[bool] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        max_records: Optional[int] = None
+    ) -> dict:
+        """Export contacts to Excel and return bytes content."""
+        df = self._build_contacts_dataframe(
+            country=country,
+            keyword=keyword,
+            city=city,
+            institution_type=institution_type,
+            source_platform=source_platform,
+            min_quality_score=min_quality_score,
+            has_email=has_email,
+            has_whatsapp=has_whatsapp,
+            date_from=date_from,
+            date_to=date_to,
+            max_records=max_records
+        )
+
+        workbook = self._create_workbook(df)
+        buffer = BytesIO()
+        workbook.save(buffer)
+        workbook.close()
+        buffer.seek(0)
+
+        content = buffer.getvalue()
+        logger.info(f"Export generated in-memory: {filename} ({len(df.index)} records, {len(content)} bytes)")
+
+        return {
+            "filename": filename,
+            "content": content,
+            "records_count": len(df.index),
+            "file_size": len(content)
+        }
+
+    def _build_contacts_dataframe(
+        self,
+        country: Optional[str] = None,
+        keyword: Optional[str] = None,
+        city: Optional[str] = None,
+        institution_type: Optional[str] = None,
+        source_platform: Optional[str] = None,
+        min_quality_score: Optional[float] = None,
+        has_email: Optional[bool] = None,
+        has_whatsapp: Optional[bool] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        max_records: Optional[int] = None
+    ) -> pd.DataFrame:
+        from app.models.task import Task
+
         if city:
             query = self.db.query(Contact).join(Task, Contact.task_id == Task.id)
         else:
             query = self.db.query(Contact)
-        
+
         if country:
             query = query.filter(Contact.country == country)
-        
+
         if keyword:
             query = query.filter(Contact.keyword == keyword)
-        
+
         if city:
             query = query.filter(Task.city == city)
-        
+
         if institution_type:
             query = query.filter(Contact.institution_type == institution_type)
-        
+
         if source_platform:
             query = query.filter(Contact.source_platform == source_platform)
-        
+
         if min_quality_score is not None:
             query = query.filter(Contact.quality_score >= min_quality_score)
-        
+
         if has_email is not None:
             if has_email:
                 query = query.filter(Contact.email.isnot(None))
             else:
                 query = query.filter(Contact.email.is_(None))
-        
+
         if has_whatsapp is not None:
             if has_whatsapp:
                 query = query.filter(Contact.whatsapp.isnot(None))
             else:
                 query = query.filter(Contact.whatsapp.is_(None))
-        
+
         if date_from:
             query = query.filter(Contact.extracted_at >= date_from)
-        
+
         if date_to:
             query = query.filter(Contact.extracted_at <= date_to)
-        
-        # Order by extraction date (must be before limit)
+
         query = query.order_by(Contact.extracted_at.desc())
-        
-        # Apply limit
+
         if max_records:
             query = query.limit(max_records)
         else:
             query = query.limit(settings.EXPORT_MAX_RECORDS)
-        
-        # Fetch contacts
+
         contacts = query.all()
-        
+
         if not contacts:
             logger.warning("No contacts found matching the filters")
             raise ValueError("No contacts found matching the filters")
-        
-        logger.info(f"Exporting {len(contacts)} contacts")
-        
-        # Convert to DataFrame
+
+        logger.info(f"Preparing export for {len(contacts)} contacts")
+
         data = []
         for contact in contacts:
             data.append({
@@ -142,25 +221,10 @@ class ExportService:
                 'is_verified': 'Yes' if contact.is_verified else 'No',
                 'extracted_at': contact.extracted_at.strftime('%Y-%m-%d %H:%M:%S') if contact.extracted_at else ''
             })
-        
-        df = pd.DataFrame(data)
-        
-        # Create Excel file with formatting
-        filepath = self.export_dir / filename
-        self._create_formatted_excel(df, filepath)
-        
-        logger.info(f"Export completed: {filepath}")
-        return str(filepath)
+
+        return pd.DataFrame(data)
     
-    def _create_formatted_excel(self, df: pd.DataFrame, filepath: Path):
-        """
-        Create formatted Excel file with bilingual headers
-        
-        Args:
-            df: DataFrame containing contact data
-            filepath: Output file path
-        """
-        # Create workbook
+    def _create_workbook(self, df: pd.DataFrame) -> Workbook:
         wb = Workbook()
         ws = wb.active
         ws.title = "Contacts"
@@ -244,6 +308,4 @@ class ExportService:
         # Freeze header rows
         ws.freeze_panes = 'A3'
         
-        # Save workbook
-        wb.save(filepath)
-        logger.info(f"Formatted Excel file created: {filepath}")
+        return wb

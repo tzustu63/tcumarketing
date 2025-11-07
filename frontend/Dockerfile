@@ -6,14 +6,14 @@ WORKDIR /app
 # Build argument for API URL
 ARG REACT_APP_API_URL=http://localhost:8000
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from repository root
+COPY frontend/package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy application code
-COPY . .
+COPY frontend/ ./
 
 # Set environment variable from build arg
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
@@ -28,7 +28,7 @@ FROM nginx:alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copy dynamic nginx start script
-COPY start.sh /start.sh
+COPY frontend/start.sh /start.sh
 RUN chmod +x /start.sh
 
 # Expose port

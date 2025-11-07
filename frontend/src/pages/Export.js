@@ -96,80 +96,121 @@ const Export = () => {
     });
   };
 
+  const parseApiJson = (data, context) => {
+    if (data && typeof data === 'object') {
+      return data;
+    }
+
+    if (typeof data === 'string') {
+      const trimmed = data.trim();
+
+      if (!trimmed) {
+        throw new Error(`${context} 回傳為空內容`);
+      }
+
+      if (trimmed.startsWith('<')) {
+        throw new Error(`${context} 回傳 HTML，請確認 API 網域與部署狀態`);
+      }
+
+      try {
+        return JSON.parse(trimmed);
+      } catch (err) {
+        console.error(`${context} 回傳非預期格式`, {
+          preview: trimmed.slice(0, 200),
+        });
+        throw new Error(`${context} 回傳格式錯誤，請稍後再試`);
+      }
+    }
+
+    throw new Error(`${context} 回傳格式錯誤，請稍後再試`);
+  };
+
   const handleExport = async () => {
     setExporting(true);
     setError(null);
     setSuccess(false);
 
     try {
-      // Remove empty filters
       const exportFilters = {};
       Object.keys(filters).forEach(key => {
         if (filters[key]) exportFilters[key] = filters[key];
       });
 
-      // Create export task
       const response = await contactService.exportContacts(exportFilters);
-      const taskId = response.task_id;
-      
-      // Poll for task completion
+      const parsedResponse = parseApiJson(response, '建立匯出任務');
+      const taskId = parsedResponse.task_id;
+
       let attempts = 0;
-      const maxAttempts = 60; // 60 seconds timeout
-      
+      const maxAttempts = 60;
+
       while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-        
-        const statusResponse = await fetch(`/api/contacts/export/${taskId}/status`);
-        const status = await statusResponse.json();
-        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const statusResponse = await api.get(`/api/contacts/export/${taskId}/status`);
+        const status = parseApiJson(statusResponse.data, '匯出狀態查詢');
+
         if (status.status === 'success') {
-          // Download the file using axios with blob response type
-          const downloadResponse = await fetch(`/api/contacts/export/${taskId}/download`);
-          
-          if (!downloadResponse.ok) {
-            throw new Error(`下載失敗: ${downloadResponse.statusText}`);
-          }
-          
-          const blob = await downloadResponse.blob();
-          
-          // Verify blob is not empty
+          const downloadResponse = await api.get(
+            `/api/contacts/export/${taskId}/download`,
+            { responseType: 'blob' }
+          );
+
+          const blobData = downloadResponse.data;
+          const blob = blobData instanceof Blob ? blobData : new Blob([blobData], { type: downloadResponse.headers['content-type'] });
+
           if (blob.size === 0) {
             throw new Error('下載的文件為空');
           }
-          
-          // Create download link with proper content type
-          const url = window.URL.createObjectURL(
-            new Blob([blob], { 
-              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-            })
-          );
+
+          let filename = status.filename || `contacts_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+          const disposition = downloadResponse.headers['content-disposition'];
+          if (disposition) {
+            const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (match && match[1]) {
+              filename = decodeURIComponent(match[1].replace(/['"]/g, '').trim());
+            }
+          }
+
+          const url = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.setAttribute('download', status.filename || `contacts_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+          link.setAttribute('download', filename);
           link.style.display = 'none';
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          
-          // Clean up after a short delay
+
           setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-          
+
           setSuccess(true);
           setTimeout(() => setSuccess(false), 5000);
-          break;
+          return;
         } else if (status.status === 'failure') {
           throw new Error(status.error || '匯出任務失敗');
         }
-        
+
         attempts++;
       }
-      
-      if (attempts >= maxAttempts) {
-        throw new Error('匯出超時，請稍後再試');
-      }
+
+      throw new Error('匯出超時，請稍後再試');
     } catch (err) {
       console.error('匯出失敗:', err);
-      setError(err.message || err.response?.data?.detail || '匯出失敗，請稍後再試');
+
+      let message = err.message || '匯出失敗，請稍後再試';
+
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const parsed = JSON.parse(text);
+          message = parsed.detail || message;
+        } catch (parseErr) {
+          console.warn('無法解析錯誤回應，使用預設訊息', parseErr);
+        }
+      } else if (err.response?.data?.detail) {
+        message = err.response.data.detail;
+      }
+
+      setError(message);
     } finally {
       setExporting(false);
     }

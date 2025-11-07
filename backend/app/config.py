@@ -1,8 +1,10 @@
 """
 Application Configuration
 """
+import re
+from typing import List, Optional, Tuple
+
 from pydantic_settings import BaseSettings
-from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -61,6 +63,33 @@ class Settings(BaseSettings):
         
         # 預設允許所有來源
         return ["*"]
+
+    @property
+    def cors_config(self) -> Tuple[List[str], Optional[str], bool]:
+        """Return parsed CORS configuration.
+
+        Returns tuple of (allow_origins, allow_origin_regex, allow_all_origins).
+        """
+
+        allow_origins: List[str] = []
+        wildcard_patterns: List[str] = []
+
+        for origin in self.cors_origins_list:
+            if origin == "*":
+                # 明確允許所有來源
+                return ["*"], None, True
+
+            if "*" in origin:
+                # 將萬用字元轉為正規表達式模式
+                pattern = re.escape(origin).replace(r"\*", ".*")
+                wildcard_patterns.append(f"^{pattern}$")
+            elif origin:
+                allow_origins.append(origin)
+
+        allow_origin_regex = "|".join(wildcard_patterns) if wildcard_patterns else None
+        allow_all = False
+
+        return allow_origins, allow_origin_regex, allow_all
 
     @property
     def celery_broker_url(self) -> str:

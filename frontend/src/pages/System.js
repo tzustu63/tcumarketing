@@ -114,19 +114,44 @@ const System = () => {
     }
   };
 
-  const getActiveTasks = () => {
+  const getActiveTasksFromCelery = () => {
     if (!workersStatus?.active_tasks) return [];
-
     const tasks = [];
-    Object.entries(workersStatus.active_tasks).forEach(
-      ([worker, workerTasks]) => {
-        workerTasks.forEach((task) => {
-          tasks.push({ ...task, worker });
-        });
-      }
-    );
+    Object.entries(workersStatus.active_tasks).forEach(([worker, workerTasks]) => {
+      workerTasks.forEach((task) => {
+        tasks.push({ ...task, worker });
+      });
+    });
     return tasks;
   };
+
+  const getDisplayedActiveTasks = () => {
+    const celeryTasks = getActiveTasksFromCelery();
+    if (celeryTasks.length > 0) {
+      return { source: "celery", tasks: celeryTasks };
+    }
+
+    if (workersStatus?.db_running_tasks?.length) {
+      const mapped = workersStatus.db_running_tasks.map((task) => ({
+        id: task.id,
+        name: `任務 ${task.keyword || task.id}`,
+        worker: "資料庫記錄",
+        args: [task.keyword, task.city, task.country].filter(Boolean),
+        progress: task.progress,
+        started_at: task.started_at,
+        status: task.status,
+      }));
+      return { source: "database", tasks: mapped };
+    }
+
+    return { source: "none", tasks: [] };
+  };
+
+  const { source: activeSource, tasks: activeTasks } = getDisplayedActiveTasks();
+  const activeCount =
+    workersStatus?.total_active && workersStatus.total_active > 0
+      ? workersStatus.total_active
+      : workersStatus?.db_running_count || 0;
 
   return (
     <div className="px-4 sm:px-0">
@@ -192,7 +217,7 @@ const System = () => {
           Worker 狀態
           {workersStatus && (
             <span className="ml-2 text-sm font-normal text-gray-600">
-              ({workersStatus.total_active} 個活動任務)
+              ({activeCount} 個活動任務)
             </span>
           )}
         </h3>
@@ -202,57 +227,84 @@ const System = () => {
             <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {getActiveTasks().length === 0 ? (
+          <>
+            {activeTasks.length === 0 ? (
               <p className="text-gray-500 text-center py-4">
                 沒有正在運行的任務
+                {workersStatus?.db_pending_count > 0 && (
+                  <span className="block text-xs text-gray-400 mt-2">
+                    目前尚有 {workersStatus.db_pending_count} 個任務排隊中
+                  </span>
+                )}
               </p>
             ) : (
-              getActiveTasks().map((task, idx) => (
-                <div
-                  key={idx}
-                  className="border border-gray-200 rounded-lg p-4"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">
-                        {task.name}
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        Worker: {task.worker}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Task ID:{" "}
-                        <code className="bg-gray-100 px-1 rounded">
-                          {task.id}
-                        </code>
-                      </div>
-                      {task.args && task.args.length > 0 && (
-                        <div className="text-sm text-gray-600 mt-1">
-                          參數: {task.args.slice(0, 2).join(", ")}
-                          {task.args.length > 2 && "..."}
+              <>
+                {activeSource === "database" && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Celery 未回應，顯示資料庫標記為執行中的任務
+                  </p>
+                )}
+                {activeTasks.map((task, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{task.name}</div>
+                        <div className="text-sm text-gray-600 mt-1">Worker: {task.worker}</div>
+                        <div className="text-sm text-gray-600">
+                          Task ID:
+                          <code className="bg-gray-100 px-1 rounded ml-1">{task.id}</code>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleRevokeTask(task.id, false)}
-                        className="px-3 py-1 text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded"
-                      >
-                        撤銷
-                      </button>
-                      <button
-                        onClick={() => handleRevokeTask(task.id, true)}
-                        className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-800 rounded"
-                      >
-                        強制終止
-                      </button>
+                        {task.args && task.args.length > 0 && (
+                          <div className="text-sm text-gray-600 mt-1">
+                            參數: {task.args.join(", ")}
+                          </div>
+                        )}
+                        {task.progress !== undefined && (
+                          <div className="text-sm text-gray-600 mt-1">
+                            進度: {task.progress}%
+                          </div>
+                        )}
+                        {task.started_at && (
+                          <div className="text-sm text-gray-500 mt-1">
+                            開始時間: {new Date(task.started_at).toLocaleString()}
+                          </div>
+                        )}
+                        {activeSource !== "celery" && (
+                          <div className="text-xs text-yellow-600 mt-2">
+                            無法直接從此視圖撤銷，請至任務列表管理
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleRevokeTask(task.id, false)}
+                          disabled={activeSource !== "celery"}
+                          className={`px-3 py-1 text-sm rounded ${
+                            activeSource === "celery"
+                              ? "bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
+                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          }`}
+                        >
+                          撤銷
+                        </button>
+                        <button
+                          onClick={() => handleRevokeTask(task.id, true)}
+                          disabled={activeSource !== "celery"}
+                          className={`px-3 py-1 text-sm rounded ${
+                            activeSource === "celery"
+                              ? "bg-red-100 hover:bg-red-200 text-red-800"
+                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          }`}
+                        >
+                          強制終止
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </>
             )}
-          </div>
+          </>
         )}
       </div>
 

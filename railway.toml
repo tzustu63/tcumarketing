@@ -3,41 +3,45 @@
 # 此配置文件用於指導 Railway 如何部署專案
 # 由於此專案包含多個服務，需要在 Railway 中分別部署
 
-# API 服務配置
-[api]
+# API 服務配置（對應服務名稱：tcu-api）
+[tcu-api]
+rootDirectory = "backend"
 builder = "DOCKERFILE"
-dockerfilePath = "backend/Dockerfile"
+dockerfilePath = "Dockerfile"
 watchPatterns = ["backend/**"]
 
-[api.deploy]
+[tcu-api.deploy]
 startCommand = "/app/start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 
-# Worker 服務配置  
-[worker]
+# Worker 服務配置（對應服務名稱：tcu-worker）
+[tcu-worker]
+rootDirectory = "backend"
 builder = "DOCKERFILE"
-dockerfilePath = "backend/Dockerfile"
+dockerfilePath = "Dockerfile"
 watchPatterns = ["backend/**"]
 
-[worker.deploy]
+[tcu-worker.deploy]
 startCommand = "/app/start.sh"
 
-# Beat 服務配置
-[beat]
+# Beat 服務配置（對應服務名稱：tcu-beat）
+[tcu-beat]
+rootDirectory = "backend"
 builder = "DOCKERFILE"
-dockerfilePath = "backend/Dockerfile"
+dockerfilePath = "Dockerfile"
 watchPatterns = ["backend/**"]
 
-[beat.deploy]
+[tcu-beat.deploy]
 startCommand = "/app/start.sh"
 
-# Frontend 服務配置
-[tcu-frontend-production]
+# Frontend 服務配置（對應服務名稱：tcu-frontend）
+[tcu-frontend]
+rootDirectory = "frontend"
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile.frontend"
+dockerfilePath = "Dockerfile"
 watchPatterns = ["frontend/**"]
 
-[tcu-frontend-production.deploy]
+[tcu-frontend.deploy]
 startCommand = "/start.sh"
 

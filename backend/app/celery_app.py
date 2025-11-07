@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 # Create Celery application
 celery_app = Celery(
     "recruitment_tasks",
-    broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND
+    broker=settings.celery_broker_url,
+    backend=settings.celery_result_backend
 )
 
 # Configure Celery

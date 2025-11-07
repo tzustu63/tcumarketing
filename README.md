@@ -220,6 +220,19 @@ npm test
 
 ## 部署
 
+### Railway 生產部署（新）
+
+- 先執行 `bash deploy-to-railway.sh`，確認 CLI 登入、專案與環境設定正確，並取得後續手動步驟清單。
+- 依照腳本輸出的指示或 `RAILWAY_DEPLOYMENT.md`：
+  1. 在 Railway 控制台（或使用 `railway up`）建立並部署 `tcu-api`、`tcu-worker`、`tcu-beat`、`tcu-frontend`。
+  2. 透過 `railway variables --service <服務> --environment production` 設定 `GOOGLE_API_KEY`、`GOOGLE_CSE_ID` 等環境變數。
+  3. 新增 PostgreSQL、Redis 資源並連結專案。
+  4. 執行資料庫遷移：
+     ```bash
+     railway run --service tcu-api alembic upgrade head
+     ```
+- 驗證各服務狀態，確認前端與 API 可正常對外提供服務後再調整域名或其他設定。
+
 ### 開發環境部署
 
 詳細步驟請參考 [DEPLOYMENT.md](DEPLOYMENT.md)

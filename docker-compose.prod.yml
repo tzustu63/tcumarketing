@@ -11,35 +11,44 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Remove init scripts in production
+    # Remove init scripts volume mount in production
+    # The ./backend/scripts:/docker-entrypoint-initdb.d mount from base config is not needed
     command: postgres -c max_connections=200 -c shared_buffers=256MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   redis:
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
 
   api:
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     environment:
       - API_RELOAD=false
       - LOG_LEVEL=WARNING
+      - SERVICE_ROLE=api
+      - UVICORN_RELOAD=false
     volumes:
       # Remove source code mount in production
       - ./exports:/app/exports
       - ./logs:/app/logs
 
   worker:
-    command: celery -A app.celery_app worker --loglevel=warning --concurrency=8 --max-tasks-per-child=1000
     environment:
       - LOG_LEVEL=WARNING
+      - TASK_MAX_WORKERS=8
+      - SERVICE_ROLE=worker
     volumes:
       # Remove source code mount in production
       - ./exports:/app/exports
       - ./logs:/app/logs
 
   beat:
-    command: celery -A app.celery_app beat --loglevel=warning
     environment:
       - LOG_LEVEL=WARNING
+      - SERVICE_ROLE=beat
     volumes:
       - ./logs:/app/logs
 
@@ -48,11 +57,16 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL}
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - REACT_APP_API_URL=${REACT_APP_API_URL}
+    # 生產環境使用 nginx，不需要 volumes 和開發命令
+    volumes: []
+    # 明確使用 nginx 啟動命令
+    command: ["nginx", "-g", "daemon off;"]
+    depends_on:
+      - api
 
 

@@ -29,11 +29,13 @@ const API_BASE_URL = getApiBaseURL();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // 10 秒超時
+  timeout: 60000, // 60 秒超時（針對任務創建等耗時操作）
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+console.log('API Base URL:', API_BASE_URL);
 
 // Request interceptor
 api.interceptors.request.use(
@@ -53,6 +55,14 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       console.error("API Error:", error.response.data);
+    } else if (error.code === 'ECONNABORTED') {
+      // 處理超時錯誤
+      console.error("請求超時，請檢查網路連接或稍後再試");
+      error.message = "請求超時，請檢查網路連接或稍後再試";
+    } else if (error.request) {
+      // 請求已發出但沒有收到響應
+      console.error("無法連接到伺服器，請檢查網路連接");
+      error.message = "無法連接到伺服器，請檢查網路連接";
     }
     return Promise.reject(error);
   }

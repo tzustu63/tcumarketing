@@ -2,7 +2,7 @@
 Application Configuration
 """
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # Celery
-    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+    CELERY_BROKER_URL: Optional[str] = None
+    CELERY_RESULT_BACKEND: Optional[str] = None
     
     # API
     API_HOST: str = "0.0.0.0"
@@ -61,6 +61,16 @@ class Settings(BaseSettings):
         
         # 預設允許所有來源
         return ["*"]
+
+    @property
+    def celery_broker_url(self) -> str:
+        """Return resolved Celery broker URL with Redis fallback"""
+        return self.CELERY_BROKER_URL or self.REDIS_URL
+
+    @property
+    def celery_result_backend(self) -> str:
+        """Return resolved Celery backend URL with Redis fallback"""
+        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
     
     # Scraping
     SCRAPING_HEADLESS: bool = True

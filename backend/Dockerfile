@@ -30,7 +30,8 @@ COPY . .
 RUN mkdir -p /app/exports /app/logs
 
 # Expose port
+ENV PORT=8000
 EXPOSE 8000
 
-# Default command
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command handled by start script (api/worker/beat)
+CMD ["/app/start.sh"]

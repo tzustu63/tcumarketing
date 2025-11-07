@@ -13,10 +13,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/scripts:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-recruitment}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
     networks:
       - recruitment-network
@@ -64,6 +65,8 @@ services:
       - SCRAPING_MAX_DELAY=${SCRAPING_MAX_DELAY:-5}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
+      - SERVICE_ROLE=api
+      - UVICORN_RELOAD=${UVICORN_RELOAD:-true}
     volumes:
       - ./backend:/app
       - ./exports:/app/exports
@@ -73,7 +76,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     networks:
       - recruitment-network
@@ -96,6 +98,7 @@ services:
       - SCRAPING_HEADLESS=${SCRAPING_HEADLESS:-true}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
+      - SERVICE_ROLE=worker
     volumes:
       - ./backend:/app
       - ./exports:/app/exports
@@ -105,7 +108,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=${TASK_MAX_WORKERS:-4}
     restart: unless-stopped
     networks:
       - recruitment-network
@@ -121,6 +123,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SERVICE_ROLE=beat
     volumes:
       - ./backend:/app
     depends_on:
@@ -128,7 +131,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.celery_app beat --loglevel=info
     restart: unless-stopped
     networks:
       - recruitment-network
@@ -138,18 +140,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
     container_name: recruitment-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8000}
-      - NODE_ENV=${NODE_ENV:-development}
     depends_on:
       - api
-    command: npm start
     restart: unless-stopped
     networks:
       - recruitment-network

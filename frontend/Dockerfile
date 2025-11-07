@@ -27,23 +27,13 @@ FROM nginx:alpine
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy nginx configuration
-RUN echo 'server { \
-    listen 3000; \
-    server_name _; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    location /static { \
-        expires 1y; \
-        add_header Cache-Control "public, immutable"; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Copy dynamic nginx start script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
 # Expose port
+ENV PORT=3000
 EXPOSE 3000
 
 # Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/start.sh"]

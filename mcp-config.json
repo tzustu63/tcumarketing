@@ -1,0 +1,85 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/kuoyuming/Desktop/程式開發/auto scraper for oga"
+      ]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://user:password@localhost:5432/recruitment"
+      ],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "postgresql://user:password@localhost:5432/recruitment"
+      }
+    },
+    "memory-bank": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory-bank",
+        "/Users/tzustu/Desktop/程式開發/auto scraper for oga/memory-bank"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-context7",
+        "--api-key",
+        "YOUR_CONTEXT7_API_KEY"
+      ]
+    },
+    "tavily": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-tavily",
+        "--api-key",
+        "YOUR_TAVILY_API_KEY"
+      ]
+    },
+    "fetch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-fetch"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "railway": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-railway"
+      ],
+      "env": {
+        "RAILWAY_TOKEN": "de4f50d9-e2f3-46f5-87b8-c5b5b6fb1143"
+      }
+    },
+    "digitalocean": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-digitalocean"
+      ],
+      "env": {
+        "DIGITALOCEAN_API_TOKEN": "dop_v1_d26c11be33b28f63196d303872b896395925d5763c3de4227892c73f030a57fe"
+      }
+    }
+  }
+}
+
+

@@ -130,18 +130,16 @@
 ### CELERY_BROKER_URL
 
 - **類型**: String
-- **必填**: 是
-- **預設值**: `redis://localhost:6379/0`
-- **說明**: Celery 訊息佇列 Broker URL
-- **建議**: 使用與 REDIS_URL 相同的值
+- **必填**: 否
+- **預設值**: 空（程式會自動 fallback 至 `REDIS_URL`）
+- **說明**: Celery 訊息佇列 Broker URL。如未設定，系統會自動使用 `REDIS_URL`。
 
 ### CELERY_RESULT_BACKEND
 
 - **類型**: String
-- **必填**: 是
-- **預設值**: `redis://localhost:6379/0`
-- **說明**: Celery 任務結果儲存後端
-- **建議**: 使用與 REDIS_URL 相同的值
+- **必填**: 否
+- **預設值**: 空（程式會自動 fallback 至 `REDIS_URL`）
+- **說明**: Celery 任務結果儲存後端。如未設定，系統會自動使用 `REDIS_URL`。
 
 ## API 配置
 
@@ -173,6 +171,13 @@
 - **選項**:
   - `true` - 程式碼變更時自動重載（開發環境）
   - `false` - 不自動重載（生產環境）
+
+### PORT （平台自動注入）
+
+- **類型**: Integer
+- **必填**: 否（PaaS 平台通常自動提供）
+- **預設值**: `8000`（本地） / Railway 會自動注入隨機連接埠
+- **說明**: 平台指定的容器對外連接埠。後端與前端映像皆已支援 `PORT` 變數，無需手動設定。
 
 ## CORS 配置
 
@@ -350,6 +355,22 @@
 - **範圍**: 100-10000
 - **建議**: 1000
 - **用途**: 防止記憶體洩漏
+
+### SERVICE_ROLE
+
+- **類型**: String
+- **必填**: 否（容器啟動參數）
+- **預設值**: `api`
+- **說明**: 決定容器啟動 FastAPI (`api`)、Celery Worker (`worker`) 或 Celery Beat (`beat`)。
+- **使用情境**: Railway 或任何使用同一映像執行不同角色時必填。
+
+### UVICORN_RELOAD
+
+- **類型**: Boolean
+- **必填**: 否
+- **預設值**: `false`
+- **說明**: 控制 API 服務是否啟用 `uvicorn --reload`（開發模式）。
+- **備註**: 在 `docker-compose.yml` 中預設為 `true`，生產環境建議維持 `false`。
 
 ## 匯出配置
 

@@ -64,17 +64,26 @@ async def create_task(
     
     # Automatically queue the task for execution
     try:
-        scrape_google_task.delay(str(created_task.id))
+        # 使用 apply_async 並設置超時，避免長時間等待
+        scrape_google_task.apply_async(
+            args=[str(created_task.id)],
+            expires=300  # 任務在 5 分鐘內必須被執行
+        )
     except Exception as e:
-        # If queueing fails, update status to failed
+        # If queueing fails, update status to failed but still return the task
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to queue task {created_task.id}: {str(e)}")
+        
         task_repo.update(str(created_task.id), {
             "status": "failed",
-            "error_message": f"Failed to queue task: {str(e)}"
+            "error_message": f"Failed to queue task: {str(e)}. Please check if Celery workers are running."
         })
-        raise HTTPException(
-            status_code=500,
-            detail=f"Task created but failed to start: {str(e)}"
-        )
+        
+        # 不拋出異常，而是返回任務（狀態已更新為 failed）
+        # 這樣前端可以看到任務已創建但啟動失敗
+        created_task.status = "failed"
+        created_task.error_message = f"Failed to queue task: {str(e)}. Please check if Celery workers are running."
     
     return created_task
 

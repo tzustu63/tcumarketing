@@ -33,6 +33,14 @@
 - **Healthcheck Path**: `/health`
 
 #### Settings → Variables（環境變數）：
+
+**⚠️ 重要：先連結資料庫！**
+1. 點擊 **+ New Variable** → **Reference Variable**
+2. 選擇 **PostgreSQL** 服務（自動注入 `DATABASE_URL`）
+3. 再次點擊 **+ New Variable** → **Reference Variable**
+4. 選擇 **Redis** 服務（自動注入 `REDIS_URL`）
+
+然後手動添加以下變數：
 ```bash
 SERVICE_ROLE=api
 PORT=8000
@@ -59,6 +67,14 @@ SCRAPING_HEADLESS=true
 - **Dockerfile Path**: `Dockerfile`
 
 #### Settings → Variables：
+
+**⚠️ 重要：先連結資料庫！**
+1. 點擊 **+ New Variable** → **Reference Variable**
+2. 選擇 **PostgreSQL** 服務（自動注入 `DATABASE_URL`）
+3. 再次點擊 **+ New Variable** → **Reference Variable**
+4. 選擇 **Redis** 服務（自動注入 `REDIS_URL`）
+
+然後手動添加以下變數：
 ```bash
 SERVICE_ROLE=worker
 TASK_MAX_WORKERS=8
@@ -84,6 +100,14 @@ SCRAPING_HEADLESS=true
 - **Dockerfile Path**: `Dockerfile`
 
 #### Settings → Variables：
+
+**⚠️ 重要：先連結資料庫！**
+1. 點擊 **+ New Variable** → **Reference Variable**
+2. 選擇 **PostgreSQL** 服務（自動注入 `DATABASE_URL`）
+3. 再次點擊 **+ New Variable** → **Reference Variable**
+4. 選擇 **Redis** 服務（自動注入 `REDIS_URL`）
+
+然後手動添加以下變數：
 ```bash
 SERVICE_ROLE=beat
 LOG_LEVEL=INFO
@@ -125,10 +149,20 @@ npm install -g @railway/cli
 # 登入
 railway login
 
-# 連接到專案
+# 使用專案 token 連接（快速方式）
+export RAILWAY_TOKEN=5ff08d2d-64e7-44f0-ab91-d0f28adcf213
+
+# 執行資料庫遷移（指定 API 服務）
+railway run --service tcu-api alembic upgrade head
+```
+
+或者使用互動式方式：
+
+```bash
+# 連接到專案（會列出你的所有專案讓你選擇）
 railway link
 
-# 執行資料庫遷移（選擇 tcu-api 服務）
+# 執行資料庫遷移
 railway run --service tcu-api alembic upgrade head
 ```
 
@@ -178,6 +212,82 @@ railway run --service tcu-api alembic upgrade head
 2. 點擊失敗的部署查看 **Build Logs** 和 **Deploy Logs**
 3. 檢查環境變數是否都設定正確
 
+### Q: Worker 出現 "Celery connection error" 怎麼辦？
+**A**: 這是因為 Worker 無法連接到 Redis。請確認：
+
+1. **檢查 Redis 連結**：
+   - 進入 Worker 服務 → **Variables** 標籤
+   - 確認有 `REDIS_URL` 變數（應該是自動注入的）
+   - 如果沒有，點擊 **+ New Variable** → **Reference Variable** → 選擇 **Redis**
+
+2. **手動設定 Redis URL**（如果自動注入失敗）：
+   - 進入 Redis 服務，複製 `REDIS_URL` 的值
+   - 進入 Worker 服務 → **Variables**
+   - 手動添加：
+     ```
+     REDIS_URL=redis://:password@host:port
+     ```
+
+3. **重新部署**：
+   - 點擊 **Deployments** → **Deploy** 按鈕
+   - 等待重新部署完成
+
+4. **查看日誌確認**：
+   - 部署成功後，查看 **Deploy Logs**
+   - 應該看到 "Connected to redis://..." 的訊息
+
+---
+
+## 🛠️ Railway CLI 快速指令
+
+專案已包含快速管理腳本 `railway-quick-commands.sh`，方便您管理 Railway 部署：
+
+### 使用方式
+
+```bash
+# 查看所有可用指令
+./railway-quick-commands.sh help
+
+# 執行資料庫遷移
+./railway-quick-commands.sh migrate
+
+# 查看服務日誌
+./railway-quick-commands.sh logs-api
+./railway-quick-commands.sh logs-worker
+./railway-quick-commands.sh logs-beat
+
+# 查看服務狀態
+./railway-quick-commands.sh status
+
+# 重新部署服務
+./railway-quick-commands.sh deploy-worker
+./railway-quick-commands.sh deploy-all
+
+# 查看環境變數
+./railway-quick-commands.sh vars-worker
+
+# 開啟遠端 shell
+./railway-quick-commands.sh shell
+```
+
+### 常用情境
+
+**1. 修復 Worker 連接問題後重新部署**
+```bash
+./railway-quick-commands.sh deploy-worker
+./railway-quick-commands.sh logs-worker
+```
+
+**2. 檢查所有服務狀態**
+```bash
+./railway-quick-commands.sh status
+```
+
+**3. 查看 Worker 環境變數確認 REDIS_URL**
+```bash
+./railway-quick-commands.sh vars-worker
+```
+
 ---
 
 ## 📞 需要協助？
@@ -186,4 +296,16 @@ railway run --service tcu-api alembic upgrade head
 1. 錯誤訊息截圖
 2. 部署日誌（Build Logs / Deploy Logs）
 3. 你正在部署哪個服務（api/worker/beat/frontend）
+
+**快速診斷指令：**
+```bash
+# 查看服務狀態
+./railway-quick-commands.sh status
+
+# 查看 Worker 日誌
+./railway-quick-commands.sh logs-worker
+
+# 查看 Worker 環境變數
+./railway-quick-commands.sh vars-worker
+```
 

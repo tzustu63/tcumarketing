@@ -11,9 +11,13 @@
 
 ## 🚀 部署指南
 
-### Railway 部署（推薦）
+### Railway 部署（推薦）⭐
 
-1. **[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)** ⭐ **最新** - Railway 多服務部署指南
+1. **[RAILWAY_SETUP_GUIDE.md](RAILWAY_SETUP_GUIDE.md)** - Railway 完整部署指南（解決 Railpack 錯誤）
+2. **[RAILWAY_CLI_USAGE.md](RAILWAY_CLI_USAGE.md)** - Railway CLI 使用指南和常用指令
+3. **[RAILWAY_CELERY_TROUBLESHOOTING.md](RAILWAY_CELERY_TROUBLESHOOTING.md)** - Celery Worker 連接問題故障排除
+4. **[railway-quick-commands.sh](railway-quick-commands.sh)** - Railway 快速管理腳本
+5. **[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)** - Railway 部署指南（舊版）
 
 ### DigitalOcean 部署（傳統方案）
 
@@ -63,12 +67,22 @@
 
 ## 🆘 需要幫助？
 
-1. **部署問題** → 查看 `DIGITALOCEAN_TROUBLESHOOTING.md`
-2. **配置問題** → 查看 `ENV_VARIABLES.md`
-3. **使用問題** → 查看 `USER_MANUAL.md`
-4. **效能問題** → 查看 `PERFORMANCE_OPTIMIZATION_GUIDE.md`
+### Railway 部署問題
+1. **Celery Worker 連接問題** → `RAILWAY_CELERY_TROUBLESHOOTING.md`
+2. **Railway 部署設定** → `RAILWAY_SETUP_GUIDE.md`
+3. **Railway CLI 使用** → `RAILWAY_CLI_USAGE.md`
+4. **快速管理指令** → 執行 `./railway-quick-commands.sh help`
+
+### DigitalOcean 部署問題
+1. **部署問題** → `DIGITALOCEAN_TROUBLESHOOTING.md`
+2. **Timeout 問題** → `DIGITALOCEAN_TIMEOUT_FIX.md`
+
+### 一般問題
+1. **配置問題** → `ENV_VARIABLES.md`
+2. **使用問題** → `USER_MANUAL.md`
+3. **效能問題** → `PERFORMANCE_OPTIMIZATION_GUIDE.md`
 
 ---
 
-**最後更新**: 2025-11-06
+**最後更新**: 2025-11-07
 

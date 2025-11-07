@@ -52,14 +52,30 @@ celery_app.conf.update(
     # Result backend
     result_expires=3600,
     result_backend_transport_options={
-        "master_name": "mymaster",
         "visibility_timeout": 3600,
+        "socket_timeout": 30,
+        "socket_connect_timeout": 30,
+        "socket_keepalive": True,
+        "health_check_interval": 25,
+        "retry_on_timeout": True,
     },
     
-    # Broker configuration
+    # Broker configuration (優化 Railway 連接)
     broker_connection_retry_on_startup=True,
     broker_connection_retry=True,
-    broker_connection_max_retries=10,
+    broker_connection_max_retries=100,  # 增加重試次數
+    broker_connection_timeout=30,  # 連接超時 30 秒
+    broker_heartbeat=None,  # 禁用心跳檢測（避免連接中斷）
+    broker_pool_limit=10,  # 連接池限制
+    broker_transport_options={
+        "visibility_timeout": 3600,
+        "max_connections": 20,
+        "socket_timeout": 30,
+        "socket_connect_timeout": 30,
+        "socket_keepalive": True,
+        "health_check_interval": 25,
+        "retry_on_timeout": True,
+    },
     
     # Rate limiting
     # 優化: 提高 rate limit 以加快任務執行速度

@@ -33,11 +33,11 @@ watchPatterns = ["backend/**"]
 startCommand = "/app/start.sh"
 
 # Frontend 服務配置
-[frontend]
+[tcu-frontend-production]
 builder = "DOCKERFILE"
-dockerfilePath = "frontend/Dockerfile"
+dockerfilePath = "Dockerfile.frontend"
 watchPatterns = ["frontend/**"]
 
-[frontend.deploy]
+[tcu-frontend-production.deploy]
 startCommand = "/start.sh"
 

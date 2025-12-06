@@ -16,14 +16,9 @@
 1. **[lightsail.md](lightsail.md)** - Lightsail 完整部署指南
 2. **[docker-compose.lightsail.yml](docker-compose.lightsail.yml)** - Lightsail Docker 配置
 
-### DigitalOcean 部署
-
-1. **[QUICK_DEPLOY.md](QUICK_DEPLOY.md)** - 3 步快速部署
-2. **[DIGITALOCEAN_DEPLOYMENT_GUIDE.md](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)** - 完整詳細指南
-3. **[DIGITALOCEAN_TROUBLESHOOTING.md](DIGITALOCEAN_TROUBLESHOOTING.md)** - 故障排除指南
-
 ### 通用部署
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - 通用部署指南
+- **[QUICK_DEPLOY.md](QUICK_DEPLOY.md)** - 快速部署指南
 
 ---
 
@@ -66,10 +61,6 @@
 
 ### Lightsail 部署問題
 1. **部署設定** → `lightsail.md`
-
-### DigitalOcean 部署問題
-1. **部署問題** → `DIGITALOCEAN_TROUBLESHOOTING.md`
-2. **Timeout 問題** → `DIGITALOCEAN_TIMEOUT_FIX.md`
 
 ### 一般問題
 1. **配置問題** → `ENV_VARIABLES.md`

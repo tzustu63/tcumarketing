@@ -11,15 +11,12 @@
 
 ## 🚀 部署指南
 
-### Railway 部署（推薦）⭐
+### Lightsail 部署（推薦）⭐
 
-1. **[RAILWAY_SETUP_GUIDE.md](RAILWAY_SETUP_GUIDE.md)** - Railway 完整部署指南（解決 Railpack 錯誤）
-2. **[RAILWAY_CLI_USAGE.md](RAILWAY_CLI_USAGE.md)** - Railway CLI 使用指南和常用指令
-3. **[RAILWAY_CELERY_TROUBLESHOOTING.md](RAILWAY_CELERY_TROUBLESHOOTING.md)** - Celery Worker 連接問題故障排除
-4. **[railway-quick-commands.sh](railway-quick-commands.sh)** - Railway 快速管理腳本
-5. **[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)** - Railway 部署指南（舊版）
+1. **[lightsail.md](lightsail.md)** - Lightsail 完整部署指南
+2. **[docker-compose.lightsail.yml](docker-compose.lightsail.yml)** - Lightsail Docker 配置
 
-### DigitalOcean 部署（傳統方案）
+### DigitalOcean 部署
 
 1. **[QUICK_DEPLOY.md](QUICK_DEPLOY.md)** - 3 步快速部署
 2. **[DIGITALOCEAN_DEPLOYMENT_GUIDE.md](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)** - 完整詳細指南
@@ -67,11 +64,8 @@
 
 ## 🆘 需要幫助？
 
-### Railway 部署問題
-1. **Celery Worker 連接問題** → `RAILWAY_CELERY_TROUBLESHOOTING.md`
-2. **Railway 部署設定** → `RAILWAY_SETUP_GUIDE.md`
-3. **Railway CLI 使用** → `RAILWAY_CLI_USAGE.md`
-4. **快速管理指令** → 執行 `./railway-quick-commands.sh help`
+### Lightsail 部署問題
+1. **部署設定** → `lightsail.md`
 
 ### DigitalOcean 部署問題
 1. **部署問題** → `DIGITALOCEAN_TROUBLESHOOTING.md`
@@ -84,5 +78,5 @@
 
 ---
 
-**最後更新**: 2025-11-07
+**最後更新**: 2025-12-06
 

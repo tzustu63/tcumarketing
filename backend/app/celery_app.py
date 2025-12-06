@@ -60,7 +60,7 @@ celery_app.conf.update(
         "retry_on_timeout": True,
     },
     
-    # Broker configuration (優化 Railway 連接)
+    # Broker configuration (優化連接穩定性)
     broker_connection_retry_on_startup=True,
     broker_connection_retry=True,
     broker_connection_max_retries=100,  # 增加重試次數

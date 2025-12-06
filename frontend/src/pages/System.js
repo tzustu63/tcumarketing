@@ -52,7 +52,11 @@ const System = () => {
 
   useEffect(() => {
     fetchStatus();
-    // 移除自動輪詢，改為手動刷新
+    // 每 5 秒自動刷新 Worker 狀態
+    const interval = setInterval(() => {
+      fetchStatus();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const showMessage = (msg, type = "success") => {

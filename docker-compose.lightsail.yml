@@ -1,0 +1,151 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: tcumarketing-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-tcumarketing}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tcumarketing_secure_pwd_2024}
+      POSTGRES_DB: ${DB_NAME:-recruitment}
+    ports:
+      - "5435:5432"
+    volumes:
+      - tcumarketing_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tcumarketing -d recruitment"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - tcumarketing-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: tcumarketing-redis
+    ports:
+      - "6381:6379"
+    volumes:
+      - tcumarketing_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - tcumarketing-network
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tcumarketing-api
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-tcumarketing}:${DB_PASSWORD:-tcumarketing_secure_pwd_2024}@db:5432/${DB_NAME:-recruitment}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_MAX_REQUESTS_PER_DOMAIN=${RATE_LIMIT_MAX_REQUESTS_PER_DOMAIN:-10}
+      - RATE_LIMIT_DOMAIN_TIME_WINDOW=${RATE_LIMIT_DOMAIN_TIME_WINDOW:-60}
+      - RATE_LIMIT_MIN_REQUEST_INTERVAL=${RATE_LIMIT_MIN_REQUEST_INTERVAL:-2.0}
+      - SCRAPING_HEADLESS=${SCRAPING_HEADLESS:-true}
+      - SCRAPING_MIN_DELAY=${SCRAPING_MIN_DELAY:-2}
+      - SCRAPING_MAX_DELAY=${SCRAPING_MAX_DELAY:-5}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
+      - SERVICE_ROLE=api
+      - UVICORN_RELOAD=false
+    volumes:
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - tcumarketing-network
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tcumarketing-worker
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-tcumarketing}:${DB_PASSWORD:-tcumarketing_secure_pwd_2024}@db:5432/${DB_NAME:-recruitment}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TASK_MAX_WORKERS=${TASK_MAX_WORKERS:-4}
+      - TASK_TIMEOUT=${TASK_TIMEOUT:-300}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - SCRAPING_HEADLESS=${SCRAPING_HEADLESS:-true}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
+      - SERVICE_ROLE=worker
+    volumes:
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - tcumarketing-network
+
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tcumarketing-beat
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-tcumarketing}:${DB_PASSWORD:-tcumarketing_secure_pwd_2024}@db:5432/${DB_NAME:-recruitment}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SERVICE_ROLE=beat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - tcumarketing-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://18.181.71.46:8001}
+    container_name: tcumarketing-frontend
+    ports:
+      - "3003:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - tcumarketing-network
+
+volumes:
+  tcumarketing_postgres_data:
+  tcumarketing_redis_data:
+
+networks:
+  tcumarketing-network:
+    driver: bridge
+    name: tcumarketing-network
+

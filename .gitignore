@@ -80,3 +80,4 @@ htmlcov/
 
 # Alembic
 alembic/versions/*.pyc
+.env.production

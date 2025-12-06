@@ -16,13 +16,17 @@ logger = logging.getLogger(__name__)
 def check_and_complete_stuck_tasks():
     """
     Check for tasks that are stuck in 'running' state with no active workers.
-    If a task has been running for more than 5 minutes with no active extraction tasks,
-    mark it as completed.
+    Also fix completed tasks that have progress < 100.
     """
     db = SessionLocal()
     task_repo = TaskRepository(db)
     
     try:
+        # Fix completed tasks with incorrect progress
+        from sqlalchemy import text
+        db.execute(text("UPDATE tasks SET progress = 100 WHERE status = 'completed' AND progress < 100"))
+        db.commit()
+        
         # Get all running tasks
         running_tasks = task_repo.get_by_status("running")
         

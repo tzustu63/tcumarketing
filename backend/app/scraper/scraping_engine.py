@@ -101,7 +101,18 @@ class ScrapingEngine:
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--window-size=1366,768')  # Smaller window
+            
+            # Memory optimization options
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--disable-plugins')
+            chrome_options.add_argument('--blink-settings=imagesEnabled=false')  # Don't load images
+            chrome_options.add_argument('--disable-translate')
+            chrome_options.add_argument('--disable-sync')
+            chrome_options.add_argument('--disable-background-networking')
+            chrome_options.add_argument('--disable-default-apps')
+            chrome_options.add_argument('--disk-cache-size=1')
+            chrome_options.add_argument('--media-cache-size=1')
             
             # Anti-detection options
             chrome_options.add_argument('--disable-blink-features=AutomationControlled')
